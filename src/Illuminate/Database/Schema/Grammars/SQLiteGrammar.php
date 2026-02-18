@@ -427,6 +427,30 @@ class SQLiteGrammar extends Grammar
     }
 
     /**
+     * Compile a fulltext index command.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
+     * @param  \Illuminate\Support\Fluent  $command
+     * @return string
+     */
+    public function compileFulltext(Blueprint $blueprint, Fluent $command)
+    {
+        // Generate a fallback name if index/virtual table name is not provided
+        $table = $this->wrapTable($blueprint);
+        $indexName = $command->index 
+            ?: $this->wrap($blueprint->getTable() . '_' . implode('_', $command->columns) . '_fts');
+
+        // Wrap column names
+        $columnsList = implode(', ', array_map([$this, 'wrap'], $command->columns));
+
+        return sprintf(
+            'create virtual table %s using fts5(%s)',
+            $indexName,
+            $columnsList
+        );
+    }
+
+    /**
      * Compile a spatial index key command.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
@@ -579,6 +603,25 @@ class SQLiteGrammar extends Grammar
     }
 
     /**
+     * Compile a drop fulltext index command.
+     *
+     * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
+     * @param  \Illuminate\Support\Fluent  $command
+     * @return string
+     */
+    public function compileDropFullText(Blueprint $blueprint, Fluent $command)
+    {
+        // Use the provided index/virtual table name or generate a fallback
+        $tableName = $command->index 
+            ?: $this->wrap($blueprint->getTable() . '_' . implode('_', $command->columns) . '_fts');
+
+        return sprintf(
+            'drop table if exists %s',
+            $this->wrap($tableName)
+        );
+    }
+
+    /**
      * Compile a drop spatial index command.
      *
      * @param  \Illuminate\Database\Schema\Blueprint  $blueprint
@@ -680,6 +723,24 @@ class SQLiteGrammar extends Grammar
     public function compileDisableForeignKeyConstraints()
     {
         return $this->pragma('foreign_keys', 0);
+    }
+
+    /**
+     * Compile a "where fulltext" clause.
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  array  $where
+     * @return string
+     */
+    public function whereFullText(Builder $query, $where)
+    {
+        $tableName = $command->index 
+            ?: $this->wrap($query->from . '_' . implode('_', $command->columns) . '_fts');
+
+        $value = str_replace("'", "''", $where['value']);
+
+        // SQLite ignores mode and language
+        return $this->wrapTable($tableName) . " MATCH '{$value}'";
     }
 
     /**
