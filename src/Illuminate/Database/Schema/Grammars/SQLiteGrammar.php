@@ -435,17 +435,12 @@ class SQLiteGrammar extends Grammar
      */
     public function compileFulltext(Blueprint $blueprint, Fluent $command)
     {
-        // Generate a fallback name if index/virtual table name is not provided
-        $table = $this->wrapTable($blueprint);
-        $indexName = $command->index 
-            ?: $this->wrap($blueprint->getTable() . '_' . implode('_', $command->columns) . '_fts');
-
-        // Wrap column names
+        $tableName = $this->wrap($blueprint->getTable() . '_fts');
         $columnsList = implode(', ', array_map([$this, 'wrap'], $command->columns));
 
         return sprintf(
             'create virtual table %s using fts5(%s)',
-            $indexName,
+            $tableName,
             $columnsList
         );
     }
@@ -611,13 +606,11 @@ class SQLiteGrammar extends Grammar
      */
     public function compileDropFullText(Blueprint $blueprint, Fluent $command)
     {
-        // Use the provided index/virtual table name or generate a fallback
-        $tableName = $command->index 
-            ?: $this->wrap($blueprint->getTable() . '_' . implode('_', $command->columns) . '_fts');
+        $tableName = $this->wrap($blueprint->getTable() . '_fts');
 
         return sprintf(
             'drop table if exists %s',
-            $this->wrap($tableName)
+            $tableName
         );
     }
 
@@ -734,13 +727,10 @@ class SQLiteGrammar extends Grammar
      */
     public function whereFullText(Builder $query, $where)
     {
-        $tableName = $command->index 
-            ?: $this->wrap($query->from . '_' . implode('_', $command->columns) . '_fts');
-
+        $table = $this->wrapTable($query->from . '_fts)
         $value = str_replace("'", "''", $where['value']);
 
-        // SQLite ignores mode and language
-        return $this->wrapTable($tableName) . " MATCH '{$value}'";
+        return $table . " MATCH '{$value}'";
     }
 
     /**
